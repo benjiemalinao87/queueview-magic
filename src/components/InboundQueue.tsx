@@ -1,15 +1,17 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { ChevronUp, ChevronDown, RefreshCw, PlusCircle, Eye, EyeOff, Grid, List } from "lucide-react";
+import { ChevronUp, ChevronDown, RefreshCw, PlusCircle, Eye, EyeOff, Grid, List, AlertTriangle, Calendar, Users, ArrowDownUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { InboundRecord, SortConfig, FilterConfig, ColumnVisibility } from "@/types";
+import { InboundRecord, SortConfig, FilterConfig, ColumnVisibility, LeadStatus } from "@/types";
 import InboundQueueItem from "./InboundQueueItem";
 import SearchBar from "./SearchBar";
 import FilterBar from "./FilterBar";
 import ColumnVisibilityControl from "./ColumnVisibilityControl";
 import LeadDetailSidebar from "./LeadDetailSidebar";
+import QueueActionBar from "./QueueActionBar";
 import { toast } from "@/hooks/use-toast";
 import { addNewRecord } from "@/utils/mockData";
+import { Button } from "./ui/button";
 
 interface InboundQueueProps {
   initialRecords?: InboundRecord[];
@@ -29,6 +31,9 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDetailSidebarOpen, setIsDetailSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'week'>('all');
   
   // Initialize default column visibility
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
@@ -51,6 +56,7 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
     notes: false,
     checkOutDate: true,
     checkedOutBy: true,
+    status: true, // Add status column
   });
 
   useEffect(() => {
@@ -126,6 +132,76 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
     setIsDetailSidebarOpen(false);
   };
 
+  const handleToggleSelectRecord = (id: string) => {
+    setSelectedRecords(prev => 
+      prev.includes(id) 
+        ? prev.filter(recordId => recordId !== id) 
+        : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedRecords.length === filteredAndSortedRecords.length) {
+      setSelectedRecords([]);
+    } else {
+      setSelectedRecords(filteredAndSortedRecords.map(record => record.id));
+    }
+  };
+
+  const handleBulkAction = (action: 'checkout' | 'assign' | 'export') => {
+    if (selectedRecords.length === 0) {
+      toast({
+        title: "No leads selected",
+        description: "Please select leads to perform this action",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    switch (action) {
+      case 'checkout':
+        // Mark selected records as checked out
+        const updatedRecords = records.map(record => {
+          if (selectedRecords.includes(record.id)) {
+            return {
+              ...record,
+              checkOutDate: new Date().toISOString(),
+              checkedOutBy: 'Current User',
+              status: 'contacted' as LeadStatus
+            };
+          }
+          return record;
+        });
+        setRecords(updatedRecords);
+        setSelectedRecords([]);
+        toast({
+          title: "Leads checked out",
+          description: `${selectedRecords.length} leads have been checked out`,
+        });
+        break;
+      case 'assign':
+        toast({
+          title: "Assign leads",
+          description: `${selectedRecords.length} leads selected for assignment`,
+        });
+        break;
+      case 'export':
+        toast({
+          title: "Export leads",
+          description: `${selectedRecords.length} leads will be exported`,
+        });
+        break;
+    }
+  };
+
+  const handleDateFilterChange = (filter: 'all' | 'today' | 'yesterday' | 'week') => {
+    setDateFilter(filter);
+  };
+
+  const handleStatusFilterChange = (status: LeadStatus | 'all') => {
+    setStatusFilter(status);
+  };
+
   const selectedRecord = useMemo(() => {
     return records.find(record => record.id === selectedRecordId) || null;
   }, [records, selectedRecordId]);
@@ -133,6 +209,7 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...records];
     
+    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(record => 
@@ -142,6 +219,7 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
       );
     }
     
+    // Apply field filter
     if (filter.value && filter.field) {
       filtered = filtered.filter(record => {
         const fieldValue = record[filter.field];
@@ -149,7 +227,36 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
           fieldValue.toLowerCase().includes(filter.value.toLowerCase());
       });
     }
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(record => record.status === statusFilter);
+    }
+
+    // Apply date filter
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      const weekAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+
+      filtered = filtered.filter(record => {
+        const receivedDate = new Date(record.received);
+        
+        switch (dateFilter) {
+          case 'today':
+            return receivedDate >= today;
+          case 'yesterday':
+            return receivedDate >= yesterday && receivedDate < today;
+          case 'week':
+            return receivedDate >= weekAgo;
+          default:
+            return true;
+        }
+      });
+    }
     
+    // Apply sorting
     filtered.sort((a, b) => {
       const aValue = a[sort.key];
       const bValue = b[sort.key];
@@ -166,7 +273,7 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
     });
     
     return filtered;
-  }, [records, searchQuery, filter, sort]);
+  }, [records, searchQuery, filter, sort, statusFilter, dateFilter]);
 
   const visibleColumns = useMemo(() => {
     return Object.entries(columnVisibility)
@@ -194,11 +301,22 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
     { key: 'notes', label: 'Notes' },
     { key: 'checkOutDate', label: 'CheckOutDate' },
     { key: 'checkedOutBy', label: 'CheckedOutBy' },
+    { key: 'status', label: 'Status' },
   ];
   
   const visibleHeaderCells = headerCells.filter(cell => 
     columnVisibility[cell.key as string]
   );
+
+  // Compute stats for the quick filters
+  const newLeadsCount = records.filter(r => r.isNew).length;
+  const pendingLeadsCount = records.filter(r => !r.checkOutDate).length;
+  const checkedOutLeadsCount = records.filter(r => !!r.checkOutDate).length;
+  const todayLeadsCount = records.filter(r => {
+    const receivedDate = new Date(r.received);
+    const today = new Date();
+    return receivedDate.toDateString() === today.toDateString();
+  }).length;
   
   return (
     <div className="space-y-4 w-full">
@@ -207,6 +325,9 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
           <h2 className="text-xl font-medium text-gray-800">Inbound Queue</h2>
           <p className="text-sm text-gray-500 mt-0.5">
             {filteredAndSortedRecords.length} leads • Sorted by {sort.key} ({sort.direction})
+            {filter.field && ` • Filtered by ${filter.field}`}
+            {statusFilter !== 'all' && ` • Status: ${statusFilter}`}
+            {dateFilter !== 'all' && ` • Date: ${dateFilter}`}
           </p>
         </div>
         
@@ -260,12 +381,113 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
         </div>
       </div>
 
+      {/* Quick filter chips */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => handleStatusFilterChange('all')}
+          className={cn(
+            "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+            statusFilter === 'all' 
+              ? "bg-gray-200 text-gray-800" 
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          )}
+        >
+          All Leads
+        </button>
+        
+        <button
+          onClick={() => handleStatusFilterChange('new')}
+          className={cn(
+            "px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5",
+            statusFilter === 'new' 
+              ? "bg-blue-200 text-blue-800" 
+              : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+          )}
+        >
+          <AlertTriangle size={12} />
+          <span>New Leads</span>
+          {newLeadsCount > 0 && <span className="px-1.5 py-0.5 bg-white rounded-full text-xs">{newLeadsCount}</span>}
+        </button>
+        
+        <button
+          onClick={() => handleDateFilterChange('today')}
+          className={cn(
+            "px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5",
+            dateFilter === 'today' 
+              ? "bg-green-200 text-green-800" 
+              : "bg-green-50 text-green-600 hover:bg-green-100"
+          )}
+        >
+          <Calendar size={12} />
+          <span>Today</span>
+          {todayLeadsCount > 0 && <span className="px-1.5 py-0.5 bg-white rounded-full text-xs">{todayLeadsCount}</span>}
+        </button>
+        
+        <button
+          onClick={() => handleStatusFilterChange('contacted')}
+          className={cn(
+            "px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5",
+            statusFilter === 'contacted' 
+              ? "bg-purple-200 text-purple-800" 
+              : "bg-purple-50 text-purple-600 hover:bg-purple-100"
+          )}
+        >
+          <Users size={12} />
+          <span>Contacted</span>
+        </button>
+        
+        <button
+          onClick={() => handleDateFilterChange('week')}
+          className={cn(
+            "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+            dateFilter === 'week' 
+              ? "bg-amber-200 text-amber-800" 
+              : "bg-amber-50 text-amber-600 hover:bg-amber-100"
+          )}
+        >
+          Last 7 Days
+        </button>
+        
+        {(statusFilter !== 'all' || dateFilter !== 'all') && (
+          <button
+            onClick={() => {
+              setStatusFilter('all');
+              setDateFilter('all');
+            }}
+            className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+          >
+            Clear Filters
+          </button>
+        )}
+      </div>
+
+      {/* Action Bar for Selected Records */}
+      {selectedRecords.length > 0 && (
+        <QueueActionBar 
+          selectedCount={selectedRecords.length}
+          onCheckout={() => handleBulkAction('checkout')}
+          onAssign={() => handleBulkAction('assign')}
+          onExport={() => handleBulkAction('export')}
+          onClearSelection={() => setSelectedRecords([])}
+        />
+      )}
+
       <div className="rounded-xl border border-gray-200/70 bg-white shadow-sm overflow-hidden">
         {viewMode === 'table' ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50/80 backdrop-blur-xs">
                 <tr>
+                  <th className="px-3 py-3 text-left">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="rounded text-apple-blue focus:ring-apple-blue"
+                        checked={selectedRecords.length === filteredAndSortedRecords.length && filteredAndSortedRecords.length > 0}
+                        onChange={handleSelectAll}
+                      />
+                    </div>
+                  </th>
                   {visibleHeaderCells.map(({ key, label }) => (
                     <th
                       key={key}
@@ -297,17 +519,22 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
                       </div>
                     </th>
                   ))}
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
                   Array.from({ length: 10 }).map((_, index) => (
                     <tr key={index} className="animate-pulse shimmer">
+                      <td className="px-3 py-3"></td>
                       {Array.from({ length: visibleHeaderCells.length }).map((_, cellIndex) => (
                         <td key={cellIndex} className="px-4 py-3">
                           <div className="h-4 bg-gray-200 rounded w-3/4"></div>
                         </td>
                       ))}
+                      <td className="px-4 py-3"></td>
                     </tr>
                   ))
                 ) : filteredAndSortedRecords.length > 0 ? (
@@ -316,14 +543,16 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
                       key={record.id}
                       record={record}
                       isSelected={record.id === selectedRecordId}
+                      isChecked={selectedRecords.includes(record.id)}
                       onClick={() => handleSelectRecord(record.id)}
+                      onCheckboxChange={() => handleToggleSelectRecord(record.id)}
                       visibleColumns={visibleColumns}
                     />
                   ))
                 ) : (
                   <tr>
                     <td 
-                      colSpan={visibleHeaderCells.length} 
+                      colSpan={visibleHeaderCells.length + 2} 
                       className="px-4 py-8 text-center text-sm text-gray-500"
                     >
                       No records found
@@ -339,39 +568,72 @@ const InboundQueue: React.FC<InboundQueueProps> = ({
               filteredAndSortedRecords.map((record) => (
                 <div 
                   key={record.id}
-                  onClick={() => handleSelectRecord(record.id)}
                   className={cn(
-                    "p-4 rounded-lg border cursor-pointer transition-all duration-150",
+                    "relative p-4 rounded-lg border cursor-pointer transition-all duration-150",
                     "hover:shadow-md hover:border-gray-300",
                     record.id === selectedRecordId ? "border-apple-blue bg-blue-50/50" : "border-gray-200",
                     record.isNew && "animate-pulse-soft bg-blue-50/30"
                   )}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-medium text-gray-800">{record.firstName} {record.lastName}</h3>
-                    {record.isNew && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
-                        New
-                      </span>
-                    )}
+                  <div className="absolute top-2 right-2">
+                    <input
+                      type="checkbox"
+                      className="rounded text-apple-blue focus:ring-apple-blue"
+                      checked={selectedRecords.includes(record.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleToggleSelectRecord(record.id);
+                      }}
+                    />
                   </div>
-                  <div className="text-xs text-gray-500 mb-3">ID: {record.id}</div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="space-y-1">
-                      <p className="text-gray-500">Product</p>
-                      <p className="font-medium">{record.product}</p>
+                  
+                  <div onClick={() => handleSelectRecord(record.id)}>
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-medium text-gray-800">{record.firstName} {record.lastName}</h3>
+                      {record.status && (
+                        <span className={cn(
+                          "inline-flex items-center px-1.5 py-0.5 rounded-full text-xs",
+                          record.status === 'new' && "bg-blue-100 text-blue-800",
+                          record.status === 'contacted' && "bg-yellow-100 text-yellow-800",
+                          record.status === 'qualified' && "bg-green-100 text-green-800",
+                          record.status === 'converted' && "bg-purple-100 text-purple-800",
+                          record.status === 'closed' && "bg-gray-100 text-gray-800"
+                        )}>
+                          {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                        </span>
+                      )}
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-gray-500">Source</p>
-                      <p className="font-medium">{record.source}</p>
+                    <div className="text-xs text-gray-500 mb-3">ID: {record.id}</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="space-y-1">
+                        <p className="text-gray-500">Product</p>
+                        <p className="font-medium">{record.product}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-gray-500">Source</p>
+                        <p className="font-medium">{record.source}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-gray-500">Location</p>
+                        <p className="font-medium">{record.city}, {record.state}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-gray-500">Received</p>
+                        <p className="font-medium">{new Date(record.received).toLocaleDateString()}</p>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-gray-500">Location</p>
-                      <p className="font-medium">{record.city}, {record.state}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-gray-500">Received</p>
-                      <p className="font-medium">{new Date(record.received).toLocaleDateString()}</p>
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-xs" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectRecord(record.id);
+                        }}
+                      >
+                        View Details
+                      </Button>
                     </div>
                   </div>
                 </div>

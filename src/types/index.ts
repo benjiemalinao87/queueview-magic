@@ -1,4 +1,6 @@
 
+export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'closed';
+
 export interface InboundRecord {
   id: string;
   customerRecordId: string;
@@ -20,7 +22,7 @@ export interface InboundRecord {
   checkOutDate: string | null;
   checkedOutBy: string | null;
   isNew?: boolean;
-  status?: 'new' | 'contacted' | 'qualified' | 'converted' | 'closed' | null;
+  status?: LeadStatus | null;
 }
 
 export type SortDirection = 'asc' | 'desc';
@@ -50,4 +52,16 @@ export interface GroupedLeadData {
 
 export interface ColumnVisibility {
   [key: string]: boolean;
+}
+
+// For metrics dashboard
+export interface QueueMetricsData {
+  total: number;
+  newLeads: number;
+  pendingLeads: number;
+  checkedOutLeads: number;
+  topProduct: string;
+  topSource: string; 
+  conversionRate: number;
+  todayLeads: number;
 }
