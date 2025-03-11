@@ -1,14 +1,21 @@
 
 import { useEffect, useState } from "react";
 import InboundQueue from "@/components/InboundQueue";
+import HeatMapModal from "@/components/HeatMapModal";
 import { toast } from "@/hooks/use-toast";
+import { Map } from "lucide-react";
+import { InboundRecord } from "@/types";
+import { generateMockData } from "@/utils/mockData";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const [records, setRecords] = useState<InboundRecord[]>([]);
+  const [isHeatMapOpen, setIsHeatMapOpen] = useState(false);
 
   useEffect(() => {
     // Simulate initial loading
     const timer = setTimeout(() => {
+      setRecords(generateMockData());
       setIsLoading(false);
       toast({
         title: "Queue loaded",
@@ -20,6 +27,10 @@ const Index = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  const handleOpenHeatMap = () => {
+    setIsHeatMapOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200/80 shadow-sm">
@@ -27,6 +38,13 @@ const Index = () => {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold text-gray-900">Inbound Lead Management</h1>
+              <button
+                onClick={handleOpenHeatMap}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-apple-blue/90 hover:bg-apple-blue text-white text-sm transition-colors duration-200 shadow-sm"
+              >
+                <Map size={16} />
+                <span>Heat Map of Leads</span>
+              </button>
             </div>
             <div className="flex items-center space-x-3">
               <div className="relative">
@@ -51,11 +69,17 @@ const Index = () => {
             </div>
           ) : (
             <div className="animate-slide-up">
-              <InboundQueue />
+              <InboundQueue onRecordsChange={setRecords} initialRecords={records} />
             </div>
           )}
         </div>
       </main>
+      
+      <HeatMapModal 
+        isOpen={isHeatMapOpen} 
+        onClose={() => setIsHeatMapOpen(false)} 
+        records={records}
+      />
     </div>
   );
 };

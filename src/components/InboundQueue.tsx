@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ChevronUp, ChevronDown, RefreshCw, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -6,57 +5,66 @@ import { InboundRecord, SortConfig, FilterConfig } from "@/types";
 import InboundQueueItem from "./InboundQueueItem";
 import SearchBar from "./SearchBar";
 import FilterBar from "./FilterBar";
-import { generateMockData, addNewRecord } from "@/utils/mockData";
+import { addNewRecord } from "@/utils/mockData";
 
-const InboundQueue: React.FC = () => {
-  const [records, setRecords] = useState<InboundRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+interface InboundQueueProps {
+  initialRecords?: InboundRecord[];
+  onRecordsChange?: (records: InboundRecord[]) => void;
+}
+
+const InboundQueue: React.FC<InboundQueueProps> = ({ 
+  initialRecords = [],
+  onRecordsChange
+}) => {
+  const [records, setRecords] = useState<InboundRecord[]>(initialRecords);
+  const [loading, setLoading] = useState(false);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<FilterConfig>({ field: '', value: '' });
   const [sort, setSort] = useState<SortConfig>({ key: 'received', direction: 'desc' });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Load initial data
   useEffect(() => {
-    const loadData = () => {
-      setLoading(true);
-      setTimeout(() => {
-        setRecords(generateMockData());
-        setLoading(false);
-      }, 1000);
-    };
-    
-    loadData();
-  }, []);
+    if (initialRecords.length > 0) {
+      setRecords(initialRecords);
+    }
+  }, [initialRecords]);
 
-  // Simulate new leads coming in
+  useEffect(() => {
+    if (onRecordsChange) {
+      onRecordsChange(records);
+    }
+  }, [records, onRecordsChange]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (Math.random() > 0.7) { // 30% chance of new lead
-        addNewRecord(records, setRecords);
+        const updatedRecords = [...records];
+        addNewRecord(updatedRecords, (newRecords) => {
+          setRecords(newRecords);
+        });
       }
     }, 8000);
     
     return () => clearInterval(interval);
   }, [records]);
 
-  // Handle refreshing data
   const handleRefresh = () => {
     setIsRefreshing(true);
     setTimeout(() => {
-      const newRecords = generateMockData();
-      setRecords(newRecords);
+      const refreshedRecords = [...records].sort(() => Math.random() - 0.5);
+      setRecords(refreshedRecords);
       setIsRefreshing(false);
     }, 800);
   };
 
-  // Handle adding a new record manually
   const handleAddRecord = () => {
-    addNewRecord(records, setRecords);
+    const updatedRecords = [...records];
+    addNewRecord(updatedRecords, (newRecords) => {
+      setRecords(newRecords);
+    });
   };
 
-  // Handle sort 
   const handleSort = (key: keyof InboundRecord) => {
     setSort(prev => {
       const newDirection = prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc';
@@ -64,26 +72,21 @@ const InboundQueue: React.FC = () => {
     });
   };
 
-  // Handle search
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
   }, []);
 
-  // Handle filter
   const handleFilter = useCallback((newFilter: FilterConfig) => {
     setFilter(newFilter);
   }, []);
 
-  // Handle record selection
   const handleSelectRecord = (id: string) => {
     setSelectedRecordId(id === selectedRecordId ? null : id);
   };
 
-  // Filter and sort records
   const filteredAndSortedRecords = useMemo(() => {
     let filtered = [...records];
     
-    // Apply search
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(record => 
@@ -93,7 +96,6 @@ const InboundQueue: React.FC = () => {
       );
     }
     
-    // Apply filters
     if (filter.value && filter.field) {
       filtered = filtered.filter(record => {
         const fieldValue = record[filter.field];
@@ -102,7 +104,6 @@ const InboundQueue: React.FC = () => {
       });
     }
     
-    // Apply sort
     filtered.sort((a, b) => {
       const aValue = a[sort.key];
       const bValue = b[sort.key];

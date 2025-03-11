@@ -33,3 +33,14 @@ export interface FilterConfig {
   field: keyof InboundRecord | '';
   value: string;
 }
+
+export interface HeatMapData {
+  source: string;
+  product: string;
+  count: number;
+}
+
+export interface GroupedLeadData {
+  name: string;
+  value: number;
+}
