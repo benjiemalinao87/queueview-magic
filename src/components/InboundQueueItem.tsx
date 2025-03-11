@@ -2,7 +2,11 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { InboundRecord } from "@/types";
-import { User, Calendar, ClipboardCheck, Mail, Phone, Eye, Edit, MoreHorizontal } from "lucide-react";
+import { 
+  User, Calendar, ClipboardCheck, Mail, Phone, Eye, Edit, 
+  MoreHorizontal, MapPin, Package, ArrowUpRight, Clock, 
+  Building, AlertCircle, Globe, Users 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface InboundQueueItemProps {
