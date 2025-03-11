@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import InboundQueue from "@/components/InboundQueue";
 import HeatMapModal from "@/components/HeatMapModal";
 import { toast } from "@/hooks/use-toast";
-import { Map } from "lucide-react";
+import { Map, BarChart3 } from "lucide-react";
 import { InboundRecord } from "@/types";
 import { generateMockData } from "@/utils/mockData";
 
@@ -40,9 +40,9 @@ const Index = () => {
               <h1 className="text-xl font-semibold text-gray-900">Inbound Lead Management</h1>
               <button
                 onClick={handleOpenHeatMap}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-apple-blue/90 hover:bg-apple-blue text-white text-sm transition-colors duration-200 shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-gradient-to-r from-apple-blue to-apple-light-blue hover:from-apple-light-blue hover:to-apple-blue text-white text-sm transition-all duration-200 shadow-sm hover:shadow"
               >
-                <Map size={16} />
+                <BarChart3 size={16} />
                 <span>Heat Map of Leads</span>
               </button>
             </div>

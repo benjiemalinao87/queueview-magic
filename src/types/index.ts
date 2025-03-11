@@ -44,6 +44,8 @@ export interface HeatMapData {
 export interface GroupedLeadData {
   name: string;
   value: number;
+  color?: string;
+  children?: GroupedLeadData[];
 }
 
 export interface ColumnVisibility {
