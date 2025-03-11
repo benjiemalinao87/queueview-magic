@@ -43,6 +43,9 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    --apple-blue: 210 100% 45%;
+    --apple-light-blue: 210 100% 55%;
   }
 
   .dark {
@@ -146,4 +149,53 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.2);
+}
+
+/* Added animations */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+@keyframes slide-out-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+.animate-slide-out-right {
+  animation: slide-out-right 0.3s ease-out;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom Apple-style colors */
+.bg-apple-blue {
+  background-color: hsl(var(--apple-blue));
+}
+
+.bg-apple-light-blue {
+  background-color: hsl(var(--apple-light-blue));
+}
+
+.text-apple-blue {
+  color: hsl(var(--apple-blue));
+}
+
+.hover\:bg-apple-blue:hover {
+  background-color: hsl(var(--apple-blue));
+}
+
+.hover\:bg-apple-light-blue:hover {
+  background-color: hsl(var(--apple-light-blue));
 }

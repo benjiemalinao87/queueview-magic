@@ -20,6 +20,7 @@ export interface InboundRecord {
   checkOutDate: string | null;
   checkedOutBy: string | null;
   isNew?: boolean;
+  status?: 'new' | 'contacted' | 'qualified' | 'converted' | 'closed' | null;
 }
 
 export type SortDirection = 'asc' | 'desc';
@@ -43,4 +44,8 @@ export interface HeatMapData {
 export interface GroupedLeadData {
   name: string;
   value: number;
+}
+
+export interface ColumnVisibility {
+  [key: string]: boolean;
 }
